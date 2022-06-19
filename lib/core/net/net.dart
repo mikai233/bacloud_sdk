@@ -38,15 +38,18 @@ class BacloudNet {
 
   Future<void> connectSocket(host, int port,
       {sourceAddress, int sourcePort = 0, Duration? timeout}) async {
-    if (_wsSocketConnected) {
-      throw Exception("socket already connected");
+    if (_socketConnected) {
+      throw Exception('socket already connected');
     }
-    _socketConnected = true;
+    if (_wsSocketConnected) {
+      throw Exception("wsSocket already connected, can not connect socket");
+    }
     _socket = await SecureSocket.connect(host, port, timeout: timeout,
         onBadCertificate: (c) {
       return true;
     });
     _socket.listen(_onData, onError: _onError, onDone: _onDone);
+    _socketConnected = true;
   }
 
   Future<void> connectWSSocket(String url,
@@ -54,24 +57,35 @@ class BacloudNet {
       Map<String, dynamic>? headers,
       CompressionOptions compression = CompressionOptions.compressionDefault,
       HttpClient? customClient}) async {
-    if (_socketConnected) {
-      throw Exception("web socket already connected");
+    if (_wsSocketConnected) {
+      throw Exception('wsSocket already connected');
     }
-    _wsSocketConnected = true;
+    if (_socketConnected) {
+      throw Exception(
+          "socket already connected, can not connect wsSocket again");
+    }
     _webSocket = await WebSocket.connect(url,
         protocols: protocols,
         headers: headers,
         compression: compression,
         customClient: customClient);
+    _wsSocketConnected = true;
   }
 
   Future<dynamic> closeSocket() async {
+    if (!_socketConnected) {
+      throw Exception('socket already closed');
+    }
     await _socket.flush();
-    _socket.listen((event) {});
+    _socketConnected = false;
     return _socket.close();
   }
 
   Future<dynamic> closeWSSocket([int? code, String? reason]) async {
+    if (!_wsSocketConnected) {
+      throw Exception('wsSocket already closed');
+    }
+    _wsSocketConnected = false;
     return _webSocket.close();
   }
 
